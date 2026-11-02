@@ -75,7 +75,6 @@ class QobuzSource(
                 thumbnailUrl = track.artworkUrl,
                 durationText = track.durationSec?.let { sec -> "%d:%02d".format(sec / 60, sec % 60) },
                 isExplicit = track.explicit,
-                isrc = track.isrc,
                 // The best the catalogue holds for this recording, stated
                 // the way the module source states its tiers. The stream
                 // actually served is re-stated by [stream] from the

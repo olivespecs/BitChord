@@ -5,9 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   build-prod-release:
     runs-on: ubuntu-latest
@@ -23,65 +20,37 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
-    - name: Setup local.properties
+    - name: Setup Secrets (Keystore & local.properties)
       run: |
         echo "LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }}" > local.properties
         echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
         echo "LISTEN_TOGETHER_SERVER=${{ secrets.LISTEN_TOGETHER_SERVER }}" >> local.properties
 
-    - name: Setup release signing
-      env:
-        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: |
-        if [ -n "$KEYSTORE_BASE64" ]; then
-          echo "$KEYSTORE_BASE64" | base64 -d > bitchord-release.jks
-          {
-            echo "storeFile=bitchord-release.jks"
-            echo "storePassword=$KEYSTORE_PASSWORD"
-            echo "keyAlias=$KEY_ALIAS"
-            echo "keyPassword=$KEY_PASSWORD"
-          } > keystore.properties
-        else
-          echo "No release keystore configured; building an unsigned release APK."
-        fi
+        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > bitchord-release.jks
+        {
+          echo "storeFile=bitchord-release.jks"
+          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
+          echo "keyAlias=${{ secrets.KEY_ALIAS }}"
+          echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+        } > keystore.properties
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build Prod Release APK
-      run: ./gradlew :app:assembleProdRelease
-
-    - name: Prepare release APK
-      id: version
-      shell: bash
-      run: |
-        version_name=$(sed -n 's/.*bitchordVersionName.*"\([^"]*\)".*/\1/p' build.gradle.kts)
-        test -n "$version_name"
-        echo "name=$version_name" >> "$GITHUB_OUTPUT"
-        apk=$(find app/build/outputs/apk/prod/release -maxdepth 1 -type f -name '*universal*.apk' -print -quit)
-        if [ -z "$apk" ]; then
-          apk=$(find app/build/outputs/apk/prod/release -maxdepth 1 -type f -name '*.apk' -print -quit)
-        fi
-        test -f "$apk"
-        cp "$apk" "BitChord-v${version_name}.apk"
+    - name: Build Signed Prod Release APK
+      run: ./gradlew assembleProdRelease
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: bitchord-prod-release-signed
-        path: BitChord-v*.apk
+        path: app/build/outputs/apk/prod/release/*.apk
 
-    - name: Publish latest release
-      uses: softprops/action-gh-release@v2
+    # Built by the same assembleProdRelease, with the same key. The watch app
+    # only pairs with a phone app signed by the same key, so a prod watch APK
+    # for these phone builds can only come from here, never a local build.
+    - name: Upload Wear OS APK Artifact
+      uses: actions/upload-artifact@v4
       with:
-        tag_name: v${{ steps.version.outputs.name }}
-        name: BitChord v${{ steps.version.outputs.name }}
-        target_commitish: ${{ github.sha }}
-        make_latest: true
-        generate_release_notes: true
-        overwrite_files: true
-        fail_on_unmatched_files: true
-        files: BitChord-v*.apk
+        name: bitchord-wear-prod-release-signed
+        path: wearos/build/outputs/apk/prod/release/*.apk
