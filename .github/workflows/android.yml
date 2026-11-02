@@ -36,17 +36,17 @@ jobs:
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       shell: bash
       run: |
-        test -n "$KEYSTORE_BASE64" || {
-          echo "::error::KEYSTORE_BASE64 is required to build an APK that updates the installed app."
-          exit 1
-        }
-        printf '%s' "$KEYSTORE_BASE64" | base64 --decode > bitchord-release.jks
-        {
-          echo "storeFile=bitchord-release.jks"
-          echo "storePassword=$KEYSTORE_PASSWORD"
-          echo "keyAlias=$KEY_ALIAS"
-          echo "keyPassword=$KEY_PASSWORD"
-        } > keystore.properties
+        if [ -n "$KEYSTORE_BASE64" ]; then
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > bitchord-release.jks
+          {
+            echo "storeFile=bitchord-release.jks"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > keystore.properties
+        else
+          echo "::notice::No release signing secrets provided; building unsigned prod release APK."
+        fi
 
     - name: Build production release APK
       run: ./gradlew :app:assembleProdRelease
