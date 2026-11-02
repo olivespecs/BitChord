@@ -44,6 +44,7 @@ private const val TAG = "BitChord"
 object QobuzApi {
 
     private const val API_BASE = "https://www.qobuz.com/api.json/0.2"
+    private val ISRC = Regex("""[A-Z]{2}[A-Z0-9]{3}\d{7}""")
 
     /** The web player's app id, as the extension's public fallback presents it. */
     private const val PUBLIC_APP_ID = "735532640"
@@ -118,9 +119,7 @@ object QobuzApi {
         val explicit = this["parental_warning"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
         // The recording's own identity, for TrackMatcher; Qobuz states it
         // on the track row itself, no enrichment pass needed.
-        val isrc = com.music.bitchord.data.sources.TrackMatcher.normalizeIsrc(
-            this["isrc"]?.jsonPrimitive?.contentOrNull,
-        )
+        val isrc = normalizeIsrc(this["isrc"]?.jsonPrimitive?.contentOrNull)
         val bitDepth = this["maximum_bit_depth"]?.jsonPrimitive?.intOrNull
         val sampleRate = this["maximum_sampling_rate"]?.jsonPrimitive?.contentOrNull
             ?.toDoubleOrNull()
@@ -146,6 +145,11 @@ object QobuzApi {
     private fun formatKhz(khz: Double): String =
         if (khz == khz.toLong().toDouble()) khz.toLong().toString()
         else ("%.1f".format(java.util.Locale.US, khz))
+
+    internal fun normalizeIsrc(raw: String?): String? =
+        raw?.trim()
+            ?.uppercase(java.util.Locale.ROOT)
+            ?.takeIf { ISRC.matches(it) }
 
     // ── The gateway: tickets and downloads ──────────────────────────────
 
