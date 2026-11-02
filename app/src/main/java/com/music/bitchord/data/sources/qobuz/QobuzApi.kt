@@ -118,9 +118,7 @@ object QobuzApi {
         val explicit = this["parental_warning"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
         // The recording's own identity, for TrackMatcher; Qobuz states it
         // on the track row itself, no enrichment pass needed.
-        val isrc = com.music.bitchord.data.sources.TrackMatcher.normalizeIsrc(
-            this["isrc"]?.jsonPrimitive?.contentOrNull,
-        )
+        val isrc = normalizeIsrc(this["isrc"]?.jsonPrimitive?.contentOrNull)
         val bitDepth = this["maximum_bit_depth"]?.jsonPrimitive?.intOrNull
         val sampleRate = this["maximum_sampling_rate"]?.jsonPrimitive?.contentOrNull
             ?.toDoubleOrNull()
@@ -146,6 +144,13 @@ object QobuzApi {
     private fun formatKhz(khz: Double): String =
         if (khz == khz.toLong().toDouble()) khz.toLong().toString()
         else ("%.1f".format(java.util.Locale.US, khz))
+
+    private val isrcRegex = Regex("^[A-Z]{2}[A-Z0-9]{3}\\d{7}$")
+
+    private fun normalizeIsrc(value: String?): String? {
+        val normalized = value?.trim()?.uppercase().orEmpty()
+        return normalized.takeIf { isrcRegex.matches(it) }
+    }
 
     // ── The gateway: tickets and downloads ──────────────────────────────
 
