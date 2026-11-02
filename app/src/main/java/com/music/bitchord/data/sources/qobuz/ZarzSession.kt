@@ -313,7 +313,10 @@ object ZarzSession {
         val grant = callbackParam(raw, "grant") ?: return false
         val state = callbackParam(raw, "state")
         val expected = pendingState()
-        if (expected != null && state != expected) {
+        // Only a state that is present and wrong refuses the grant. One
+        // that is absent is the gateway page's grant-only shape (its
+        // copy-link fallback), and the exchange below is its judge.
+        if (expected != null && state != null && state != expected) {
             TrackLog.w(TAG, "  ✗ Qobuz verification callback carried an unexpected state")
             return false
         }

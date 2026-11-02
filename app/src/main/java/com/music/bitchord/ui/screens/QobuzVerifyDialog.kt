@@ -90,8 +90,15 @@ fun QobuzVerifyDialog(onDismiss: () -> Unit, onVerified: () -> Unit) {
         // The state is the nonce this install put in its own callback
         // URL; a redirect carrying a different one is not the answer to
         // the challenge this dialog opened, whatever it claims to be.
+        // A callback carrying no state at all is a different shape, not
+        // a wrong answer: it is the gateway page's own copy-link
+        // fallback, which hands over the grant alone for the listener to
+        // carry back by hand. That one is let through and the exchange
+        // judges the grant itself — a grant minted for somebody else's
+        // challenge is not tied to this install and the gateway refuses
+        // it there.
         val expected = ZarzSession.pendingState()
-        if (expected != null && state != expected) {
+        if (expected != null && state != null && state != expected) {
             TrackLog.w(TAG, "  ✗ Qobuz verification callback carried an unexpected state")
             status = "That verification answer did not match this request. Try again."
             return
